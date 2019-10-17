@@ -14,7 +14,14 @@ defmodule Pleroma.Activity.Search do
   import Ecto.Query
 
   def search(user, search_query, options \\ []) do
-    index_type = if Pleroma.Config.get([:database, :rum_enabled]), do: :rum, else: :gin
+    config_fts_index_type = Pleroma.Config.get([:database, :fts_index_type])
+    index_type = cond do
+      config_fts_index_type == :gin -> :gin
+      config_fts_index_type == :rum -> :rum
+      config_fts_index_type == :pgroonga -> :pgroonga
+      Pleroma.Config.get([:database, :rum_enabled]) -> :rum
+      true -> :gin
+    end
     limit = Enum.min([Keyword.get(options, :limit), 40])
     offset = Keyword.get(options, :offset, 0)
     author = Keyword.get(options, :author)
@@ -65,6 +72,17 @@ defmodule Pleroma.Activity.Search do
           ^search_query
         ),
       order_by: [fragment("? <=> now()::date", o.inserted_at)]
+    )
+  end
+
+  defp query_with(q, :pgroonga, search_query) do
+    from([a, o] in q,
+      where:
+        fragment(
+          "? &@~ ?",
+          o.data,
+          ^search_query
+        )
     )
   end
 

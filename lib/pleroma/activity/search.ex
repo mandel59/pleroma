@@ -79,7 +79,7 @@ defmodule Pleroma.Activity.Search do
     from([a, o] in q,
       where:
         fragment(
-          "? &@~ ?",
+          ~S/? &` ('query("string", ' || to_json(?) || ') && paths @ "content"')/,
           o.data,
           ^search_query
         )

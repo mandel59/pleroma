@@ -15,15 +15,18 @@ defmodule Pleroma.Activity.Search do
 
   def search(user, search_query, options \\ []) do
     config_fts_index_type = Pleroma.Config.get([:database, :fts_index_type])
-    index_type = cond do
-      config_fts_index_type == :gin -> :gin
-      config_fts_index_type == :rum -> :rum
-      config_fts_index_type == :pgroonga -> :pgroonga
-      config_fts_index_type == :zombodb -> :zombodb
-      config_fts_index_type == :bigm -> :bigm
-      Pleroma.Config.get([:database, :rum_enabled]) -> :rum
-      true -> :gin
-    end
+
+    index_type =
+      cond do
+        config_fts_index_type == :gin -> :gin
+        config_fts_index_type == :rum -> :rum
+        config_fts_index_type == :pgroonga -> :pgroonga
+        config_fts_index_type == :zombodb -> :zombodb
+        config_fts_index_type == :bigm -> :bigm
+        Pleroma.Config.get([:database, :rum_enabled]) -> :rum
+        true -> :gin
+      end
+
     limit = Enum.min([Keyword.get(options, :limit), 40])
     offset = Keyword.get(options, :offset, 0)
     author = Keyword.get(options, :author)

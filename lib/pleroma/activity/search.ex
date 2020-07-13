@@ -19,6 +19,7 @@ defmodule Pleroma.Activity.Search do
       config_fts_index_type == :gin -> :gin
       config_fts_index_type == :rum -> :rum
       config_fts_index_type == :pgroonga -> :pgroonga
+      config_fts_index_type == :zombodb -> :zombodb
       Pleroma.Config.get([:database, :rum_enabled]) -> :rum
       true -> :gin
     end
@@ -88,6 +89,18 @@ defmodule Pleroma.Activity.Search do
           o.data,
           ^search_query
         )
+    )
+  end
+
+  defp query_with(q, :zombodb, search_query) do
+    from([a, o] in q,
+      where:
+        fragment(
+          "? ==> dsl.sort('inserted_at', 'desc', dsl.limit(100, ?::zdbquery::json))",
+          o,
+          ^search_query
+        ),
+      order_by: [desc: o.inserted_at]
     )
   end
 

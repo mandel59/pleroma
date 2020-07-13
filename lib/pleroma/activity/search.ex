@@ -87,8 +87,7 @@ defmodule Pleroma.Activity.Search do
           ~S/? &` ('query("string", ' || to_json(?::text) || ') && paths @ "content"')/,
           o.data,
           ^search_query
-        ),
-      order_by: [desc: :id]
+        )
     )
   end
 

@@ -20,6 +20,7 @@ defmodule Pleroma.Activity.Search do
       config_fts_index_type == :rum -> :rum
       config_fts_index_type == :pgroonga -> :pgroonga
       config_fts_index_type == :zombodb -> :zombodb
+      config_fts_index_type == :bigm -> :bigm
       Pleroma.Config.get([:database, :rum_enabled]) -> :rum
       true -> :gin
     end
@@ -101,6 +102,17 @@ defmodule Pleroma.Activity.Search do
           ^search_query
         ),
       order_by: [desc: o.inserted_at]
+    )
+  end
+
+  defp query_with(q, :bigm, search_query) do
+    from([a, o] in q,
+      where:
+        fragment(
+          "?->>'content' LIKE likequery(?)",
+          o.data,
+          ^search_query
+        )
     )
   end
 

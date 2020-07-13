@@ -3,6 +3,54 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.0.7] - 2020-06-13
+
+### Security
+- Fix potential DoSes exploiting atom leaks in rich media parser and the `UserAllowListPolicy` MRF policy
+
+### Fixed
+- CSP: not allowing images/media from every host when mediaproxy is disabled
+- CSP: not adding mediaproxy base url to image/media hosts
+- StaticFE missing the CSS file
+
+### Upgrade notes
+
+1. Restart Pleroma
+
+## [2.0.6] - 2020-06-09
+
+### Security
+- CSP: harden `image-src` and `media-src` when MediaProxy is used
+
+### Fixed
+- AP C2S: Fix pagination in inbox/outbox
+- Various compilation errors on OTP 23
+- Mastodon API streaming: Repeats from muted threads not being filtered
+
+### Changed
+- Various database performance improvements
+
+### Upgrade notes
+1. Run database migrations (inside Pleroma directory):
+  - OTP: `./bin/pleroma_ctl migrate`
+  - From Source: `mix ecto.migrate`
+2. Restart Pleroma
+
+## [2.0.5] - 2020-05-13
+
+### Security
+- Fix possible private status leaks in Mastodon Streaming API
+
+### Fixed
+- Crashes when trying to block a user if block federation is disabled
+- Not being able to start the instance without `erlang-eldap` installed
+- Users with bios over the limit getting rejected
+- Follower counters not being updated on incoming follow accepts
+
+### Upgrade notes
+
+1. Restart Pleroma
+
 ## [2.0.4] - 2020-05-10
 
 ### Security

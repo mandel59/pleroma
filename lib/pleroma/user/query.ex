@@ -42,9 +42,12 @@ defmodule Pleroma.User.Query do
             external: boolean(),
             active: boolean(),
             deactivated: boolean(),
+            need_approval: boolean(),
             is_admin: boolean(),
             is_moderator: boolean(),
             super_users: boolean(),
+            invisible: boolean(),
+            internal: boolean(),
             followers: User.t(),
             friends: User.t(),
             recipients_from_activity: [String.t()],
@@ -54,13 +57,13 @@ defmodule Pleroma.User.Query do
             select: term(),
             limit: pos_integer()
           }
-          | %{}
+          | map()
 
   @ilike_criteria [:nickname, :name, :query]
   @equal_criteria [:email]
   @contains_criteria [:ap_id, :nickname]
 
-  @spec build(criteria()) :: Query.t()
+  @spec build(Query.t(), criteria()) :: Query.t()
   def build(query \\ base_query(), criteria) do
     prepare_query(query, criteria)
   end
@@ -78,7 +81,9 @@ defmodule Pleroma.User.Query do
   end
 
   defp prepare_query(query, criteria) do
-    Enum.reduce(criteria, query, &compose_query/2)
+    criteria
+    |> Map.put_new(:internal, false)
+    |> Enum.reduce(query, &compose_query/2)
   end
 
   defp compose_query({key, value}, query)
@@ -86,6 +91,10 @@ defmodule Pleroma.User.Query do
     # hack for :query key
     key = if key == :query, do: :nickname, else: key
     where(query, [u], ilike(field(u, ^key), ^"%#{value}%"))
+  end
+
+  defp compose_query({:invisible, bool}, query) when is_boolean(bool) do
+    where(query, [u], u.invisible == ^bool)
   end
 
   defp compose_query({key, value}, query)
@@ -98,15 +107,15 @@ defmodule Pleroma.User.Query do
   end
 
   defp compose_query({:tags, tags}, query) when is_list(tags) and length(tags) > 0 do
-    Enum.reduce(tags, query, &prepare_tag_criteria/2)
+    where(query, [u], fragment("? && ?", u.tags, ^tags))
   end
 
-  defp compose_query({:is_admin, _}, query) do
-    where(query, [u], u.is_admin)
+  defp compose_query({:is_admin, bool}, query) do
+    where(query, [u], u.is_admin == ^bool)
   end
 
-  defp compose_query({:is_moderator, _}, query) do
-    where(query, [u], u.is_moderator)
+  defp compose_query({:is_moderator, bool}, query) do
+    where(query, [u], u.is_moderator == ^bool)
   end
 
   defp compose_query({:super_users, _}, query) do
@@ -123,13 +132,12 @@ defmodule Pleroma.User.Query do
 
   defp compose_query({:active, _}, query) do
     User.restrict_deactivated(query)
-    |> where([u], not is_nil(u.nickname))
+    |> where([u], u.approval_pending == false)
   end
 
   defp compose_query({:legacy_active, _}, query) do
     query
     |> where([u], fragment("not (?->'deactivated' @> 'true')", u.info))
-    |> where([u], not is_nil(u.nickname))
   end
 
   defp compose_query({:deactivated, false}, query) do
@@ -138,7 +146,14 @@ defmodule Pleroma.User.Query do
 
   defp compose_query({:deactivated, true}, query) do
     where(query, [u], u.deactivated == ^true)
-    |> where([u], not is_nil(u.nickname))
+  end
+
+  defp compose_query({:confirmation_pending, bool}, query) do
+    where(query, [u], u.confirmation_pending == ^bool)
+  end
+
+  defp compose_query({:need_approval, _}, query) do
+    where(query, [u], u.approval_pending)
   end
 
   defp compose_query({:followers, %User{id: id}}, query) do
@@ -188,14 +203,15 @@ defmodule Pleroma.User.Query do
     limit(query, ^limit)
   end
 
-  defp compose_query(_unsupported_param, query), do: query
-
-  defp prepare_tag_criteria(tag, query) do
-    or_where(query, [u], fragment("? = any(?)", ^tag, u.tags))
+  defp compose_query({:internal, false}, query) do
+    query
+    |> where([u], not is_nil(u.nickname))
+    |> where([u], not like(u.nickname, "internal.%"))
   end
+
+  defp compose_query(_unsupported_param, query), do: query
 
   defp location_query(query, local) do
     where(query, [u], u.local == ^local)
-    |> where([u], not is_nil(u.nickname))
   end
 end

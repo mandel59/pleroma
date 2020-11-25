@@ -7,7 +7,6 @@ defmodule Pleroma.Activity do
 
   alias Pleroma.Activity
   alias Pleroma.Activity.Queries
-  alias Pleroma.ActivityExpiration
   alias Pleroma.Bookmark
   alias Pleroma.Notification
   alias Pleroma.Object
@@ -24,22 +23,16 @@ defmodule Pleroma.Activity do
 
   @primary_key {:id, FlakeId.Ecto.CompatType, autogenerate: true}
 
-  # https://github.com/tootsuite/mastodon/blob/master/app/models/notification.rb#L19
-  @mastodon_notification_types %{
-    "Create" => "mention",
-    "Follow" => ["follow", "follow_request"],
-    "Announce" => "reblog",
-    "Like" => "favourite",
-    "Move" => "move",
-    "EmojiReact" => "pleroma:emoji_reaction"
-  }
-
   schema "activities" do
     field(:data, :map)
     field(:local, :boolean, default: true)
     field(:actor, :string)
     field(:recipients, {:array, :string}, default: [])
     field(:thread_muted?, :boolean, virtual: true)
+
+    # A field that can be used if you need to join some kind of other
+    # id to order / paginate this field by
+    field(:pagination_id, :string, virtual: true)
 
     # This is a fake relation,
     # do not use outside of with_preloaded_user_actor/with_joined_user_actor
@@ -65,8 +58,6 @@ defmodule Pleroma.Activity do
     # As a convenience, Activity.with_preloaded_object() sets up an inner join and preload for the
     # typical case.
     has_one(:object, Object, on_delete: :nothing, foreign_key: :id)
-
-    has_one(:expiration, ActivityExpiration, on_delete: :delete_all)
 
     timestamps()
   end
@@ -300,32 +291,6 @@ defmodule Pleroma.Activity do
 
   def follow_accepted?(_), do: false
 
-  @spec mastodon_notification_type(Activity.t()) :: String.t() | nil
-
-  for {ap_type, type} <- @mastodon_notification_types, not is_list(type) do
-    def mastodon_notification_type(%Activity{data: %{"type" => unquote(ap_type)}}),
-      do: unquote(type)
-  end
-
-  def mastodon_notification_type(%Activity{data: %{"type" => "Follow"}} = activity) do
-    if follow_accepted?(activity) do
-      "follow"
-    else
-      "follow_request"
-    end
-  end
-
-  def mastodon_notification_type(%Activity{}), do: nil
-
-  @spec from_mastodon_notification_type(String.t()) :: String.t() | nil
-  @doc "Converts Mastodon notification type to AR activity type"
-  def from_mastodon_notification_type(type) do
-    with {k, _v} <-
-           Enum.find(@mastodon_notification_types, fn {_k, v} -> type in List.wrap(v) end) do
-      k
-    end
-  end
-
   def all_by_actor_and_id(actor, status_ids \\ [])
   def all_by_actor_and_id(_actor, []), do: []
 
@@ -336,14 +301,14 @@ defmodule Pleroma.Activity do
     |> Repo.all()
   end
 
-  def follow_requests_for_actor(%Pleroma.User{ap_id: ap_id}) do
+  def follow_requests_for_actor(%User{ap_id: ap_id}) do
     ap_id
     |> Queries.by_object_id()
     |> Queries.by_type("Follow")
     |> where([a], fragment("? ->> 'state' = 'pending'", a.data))
   end
 
-  def following_requests_for_actor(%Pleroma.User{ap_id: ap_id}) do
+  def following_requests_for_actor(%User{ap_id: ap_id}) do
     Queries.by_type("Follow")
     |> where([a], fragment("?->>'state' = 'pending'", a.data))
     |> where([a], a.actor == ^ap_id)
@@ -371,5 +336,11 @@ defmodule Pleroma.Activity do
     else
       _ -> nil
     end
+  end
+
+  @spec pinned_by_actor?(Activity.t()) :: boolean()
+  def pinned_by_actor?(%Activity{} = activity) do
+    actor = user_actor(activity)
+    activity.id in actor.pinned_activities
   end
 end

@@ -63,24 +63,25 @@ defmodule Pleroma.Web.ActivityPub.Publisher do
         date: date
       })
 
-    with {:ok, %{status: code}} when code in 200..299 <-
-           result =
-             HTTP.post(
-               inbox,
-               json,
-               [
-                 {"Content-Type", "application/activity+json"},
-                 {"Date", date},
-                 {"signature", signature},
-                 {"digest", digest}
-               ]
-             ) do
-      if not Map.has_key?(params, :unreachable_since) || params[:unreachable_since] do
-        Instances.set_reachable(inbox)
-      end
+    result =
+      HTTP.post(
+        inbox,
+        json,
+        [
+          {"Content-Type", "application/activity+json"},
+          {"Date", date},
+          {"signature", signature},
+          {"digest", digest}
+        ]
+      )
 
-      result
-    else
+    case result do
+      {:ok, %{status: code}} when code in 200..299 ->
+        if not Map.has_key?(params, :unreachable_since) || params[:unreachable_since] do
+          Instances.set_reachable(inbox)
+        end
+
+        result
       {_post_result, response} ->
         unless params[:unreachable_since], do: Instances.set_unreachable(inbox)
         {:error, response}

@@ -14,7 +14,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed
 
-## 2.4.0 - 2021-08-xx
+## 2.4.3 - 2022-05-06
+
+### Security
+- Private `/objects/` and `/activities/` leaking if cached by authenticated user
+- SweetXML library DTD bomb
+
+## 2.4.2 - 2022-01-10
+
+### Fixed
+- Federation issues caused by HTTP pool checkout timeouts
+- Compatibility with Elixir 1.13
+
+### Upgrade notes
+
+1. Restart Pleroma
+
+## 2.4.1 - 2021-08-29
+
+### Changed
+- Make `mix pleroma.database set_text_search_config` run concurrently and indefinitely
+
+### Added
+- AdminAPI: Missing configuration description for StealEmojiPolicy
+
+### Fixed
+- MastodonAPI: Stream out Create activities
+- MRF ObjectAgePolicy: Fix pattern matching on "published"
+- TwitterAPI: Make `change_password` and `change_email` require params on body instead of query
+- Subscription(Bell) Notifications: Don't create from Pipeline Ingested replies
+- AdminAPI: Fix rendering reports containing a `nil` object
+- Mastodon API: Activity Search fallbacks on status fetching after a DB Timeout/Error
+- Mastodon API: Fix crash in Streamer related to reblogging
+- AdminAPI: List available frontends when `static/frontends` folder is missing
+- Make activity search properly use language-aware GIN indexes
+- AdminAPI: Fix suggestions for MRF Policies
+
+## 2.4.0 - 2021-08-08
 
 ### Changed
 

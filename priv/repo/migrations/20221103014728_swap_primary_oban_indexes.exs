@@ -9,7 +9,6 @@ defmodule Pleroma.Repo.Migrations.SwapPrimaryObanIndexes do
       index(
         :oban_jobs,
         [:state, :queue, :priority, :scheduled_at, :id],
-        concurrently: true,
         prefix: "public"
       )
     )
@@ -18,7 +17,6 @@ defmodule Pleroma.Repo.Migrations.SwapPrimaryObanIndexes do
       index(
         :oban_jobs,
         [:queue, :state, :priority, :scheduled_at, :id],
-        concurrently: true,
         prefix: "public"
       )
     )
